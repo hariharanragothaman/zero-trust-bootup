@@ -8,7 +8,7 @@ It demonstrates how to combine **SPIRE + SPIFFE** (identity), **Istio** (mTL
 
 ---
 
-## 🏃 Quick Start (Minikube)
+## Quick Start (Minikube)
 
 ```bash
 # 1. Clone and enter
@@ -32,14 +32,14 @@ Within ~3 minutes you’ll have:
 
 ---
 
-## 🔬 Manual Steps (for live walk‑through)
+## Manual Steps (for live walk‑through)
 
 See **[`docs/demo-guide.md`](docs/demo-guide.md)** for a step‑by‑step
 terminal script you can run during the talk.
 
 ---
 
-## 🗂 Repo Layout
+## Repo Layout
 
 ```
 k8s/
@@ -54,7 +54,7 @@ src/             # Sample application code
 
 ---
 
-## 📚 References
+## References
 
 * [SPIFFE / SPIRE](https://spiffe.io)
 * [Istio Security](https://istio.io/latest/docs/concepts/security/)
