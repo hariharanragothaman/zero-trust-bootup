@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-echo
+  namespace: spire-system
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: spire-server
+      containers:
+        - name: register
+          image: ghcr.io/spiffe/spire-server:1.8.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              /opt/spire/bin/spire-server entry create \
+                -spiffeID spiffe://example.org/ns/default/sa/echo-service \
+                -selector k8s:ns:default \
+                -selector k8s:sa:echo-service

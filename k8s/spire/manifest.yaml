@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spire-system
+---
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server-config
+  namespace: spire-system
+data:
+  server.conf: |
+    server {
+        bind_address = "0.0.0.0"
+        bind_port = "8081"
+        trust_domain = "example.org"
+        data_dir = "/run/spire/data"
+    }
+    plugins {
+        DataStore "sqlite3" {
+            plugin_data {
+                file_path = "/run/spire/data/datastore.sqlite3"
+            }
+        }
+        NodeAttestor "k8s_psat" {
+            plugin_data {
+                clusters = {
+                    "demo-cluster" = {}
+                }
+            }
+        }
+        WorkloadAttestor "k8s" {
+            plugin_data {}
+        }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spire-server
+  namespace: spire-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spire-server
+  template:
+    metadata:
+      labels:
+        app: spire-server
+    spec:
+      containers:
+      - name: spire-server
+        image: ghcr.io/spiffe/spire-server:1.8.0
+        args: ["-config", "/run/spire/config/server.conf"]
+        volumeMounts:
+        - name: spire-config
+          mountPath: /run/spire/config
+        - name: spire-data
+          mountPath: /run/spire/data
+      volumes:
+      - name: spire-config
+        configMap:
+          name: spire-server-config
+      - name: spire-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-agent-config
+  namespace: spire-system
+data:
+  agent.conf: |
+    agent {
+        data_dir = "/run/spire/data"
+        trust_domain = "example.org"
+        server_address = "spire-server"
+        server_port = "8081"
+        socket_path = "unix:///run/spire/sockets/agent.sock"
+    }
+    plugins {
+        NodeAttestor "k8s_psat" {
+            plugin_data {
+                cluster = "demo-cluster"
+            }
+        }
+        WorkloadAttestor "unix" { }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: spire-system
+spec:
+  selector:
+    matchLabels:
+      app: spire-agent
+  template:
+    metadata:
+      labels:
+        app: spire-agent
+    spec:
+      serviceAccountName: spire-agent
+      containers:
+      - name: spire-agent
+        image: ghcr.io/spiffe/spire-agent:1.8.0
+        args: ["-config", "/run/spire/config/agent.conf"]
+        volumeMounts:
+        - name: spire-config
+          mountPath: /run/spire/config
+        - name: spire-socket
+          mountPath: /run/spire/sockets
+      volumes:
+      - name: spire-config
+        configMap:
+          name: spire-agent-config
+      - name: spire-socket
+        emptyDir: {}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: register-echo
+  namespace: spire-system
+spec:
+  template:
+    spec:
+      serviceAccountName: spire-server
+      restartPolicy: Never
+      containers:
+      - name: spire-registration
+        image: ghcr.io/spiffe/spire-server:1.8.0
+        command:
+        - /bin/sh
+        - -c
+        - |
+          /opt/spire/bin/spire-server entry create             -spiffeID spiffe://example.org/ns/default/sa/echo-service             -selector k8s:sa:echo-service             -selector k8s:ns:default

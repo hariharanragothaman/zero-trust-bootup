@@ -1,0 +1,70 @@
+# ServiceAccount for the agent
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spire-agent
+  namespace: spire-system
+---
+# (Optional but recommended) allow the agent to read pod metadata
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-agent-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get","list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-agent-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-agent-role
+subjects:
+  - kind: ServiceAccount
+    name: spire-agent
+    namespace: spire-system
+---
+# DaemonSet – one agent per node
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: spire-agent
+  namespace: spire-system
+spec:
+  selector:
+    matchLabels:
+      app: spire-agent
+  template:
+    metadata:
+      labels:
+        app: spire-agent
+    spec:
+      serviceAccountName: spire-agent
+
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+        - key: "node-role.kubernetes.io/master"        # for older clusters
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.8.0
+          command: ["/opt/spire/bin/spire-agent","run","-config","/run/spire/config/agent.conf"]
+          volumeMounts:
+            - name: config
+              mountPath: /run/spire/config
+            - name: sockets
+              mountPath: /run/spire/sockets
+      volumes:
+        - name: config
+          configMap:
+            name: spire-agent-config       # already created earlier
+        - name: sockets
+          emptyDir: {}

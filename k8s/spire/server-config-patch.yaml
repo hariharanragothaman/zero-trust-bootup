@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-server-config
+  namespace: spire-system
+data:
+  server.conf: |
+    server {
+      bind_address = "0.0.0.0"
+      bind_port    = "8081"
+      trust_domain = "example.org"
+      data_dir     = "/run/spire/data"
+    }
+
+    plugins {
+      DataStore "sql" {
+        plugin_data {
+          database_type     = "sqlite3"
+          connection_string = "file:/run/spire/data/datastore.sqlite3?_fk=true"
+        }
+      }
+      KeyManager "memory" {}                
+
+      NodeAttestor "k8s_psat" {
+        plugin_data {
+            clusters = {
+                "demo-cluster" = {
+                    service_account_allow_list = ["spire-system:spire-agent"]
+                }
+            }
+        }
+    }
+    }

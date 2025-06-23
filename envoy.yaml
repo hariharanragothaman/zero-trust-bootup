@@ -1,0 +1,59 @@
+static_resources:
+  listeners:
+  - name: listener_0
+    address: { socket_address: { address: 0.0.0.0, port_value: 8080 } }
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: ingress_http
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: backend
+              domains: ["*"]
+              routes:
+              - match: { prefix: "/" }
+                route: { cluster: echo_service }
+          http_filters:
+          - name: envoy.filters.http.ext_authz      # OPA filter
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+              failure_mode_allow: true             # ← bypass if OPA errors
+              http_service:
+                server_uri:
+                  uri: http://opa:8181
+                  cluster: opa_cluster
+                  timeout: 0.25s
+                path_prefix: /v1/data/httpapi/authz
+                authorization_request:
+                  allowed_headers:
+                    patterns:
+                      - exact: ":method"
+                      - exact: ":path"
+                      - exact: "user"
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+  - name: echo_service
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: echo_service
+      endpoints:
+      - lb_endpoints:
+        - endpoint: { address: { socket_address: { address: echo-service, port_value: 5000 } } }
+
+  - name: opa_cluster
+    connect_timeout: 0.25s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: opa_cluster
+      endpoints:
+      - lb_endpoints:
+        - endpoint: { address: { socket_address: { address: opa, port_value: 8181 } } }

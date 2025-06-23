@@ -1,0 +1,55 @@
+########################################
+# 1) Policy ConfigMap – loads ONE file #
+########################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-policy
+data:
+  example.rego: |
+    package httpapi.authz
+
+    default allow = true
+---
+################################################
+# 2) OPA Deployment (mounts that single policy) #
+################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opa
+  labels: { app: opa }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: opa }
+  template:
+    metadata:
+      labels: { app: opa }
+    spec:
+      containers:
+        - name: opa
+          image: openpolicyagent/opa:latest
+          args: ["run", "--server", "/policy/example.rego"]
+          volumeMounts:
+            # Mount ONLY the one file via subPath so OPA sees exactly one copy
+            - name: policy
+              mountPath: /policy/example.rego     # target path in container
+              subPath:  example.rego              # file inside ConfigMap
+      volumes:
+        - name: policy
+          configMap:
+            name: opa-policy
+---
+####################################
+# 3) (Optional) OPA Service (8181) #
+####################################
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa
+spec:
+  selector: { app: opa }
+  ports:
+    - port: 8181
+      targetPort: 8181
