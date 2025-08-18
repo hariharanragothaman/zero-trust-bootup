@@ -1,6 +1,10 @@
 # Zero Trust for APIs & Microservices – Demo
 
-This repository accompanies the talk **“Zero Trust for APIs and Microservices: Service‑Mesh Security in a Cloud‑Native World.”**
+This repository accompanies the talks
+
+**“Zero Trust for APIs and Microservices: Service‑Mesh Security in a Cloud‑Native World.”**
+**“Shift-Left Meets Zero Trust: Building Secure-by-Design APIs from Day Zero.”**
+
 
 It demonstrates how to combine **SPIRE + SPIFFE** (identity), **Istio** (mTLS/mesh),
 **OPA** (policy), and **Envoy** (gateway) on a local Kubernetes cluster
