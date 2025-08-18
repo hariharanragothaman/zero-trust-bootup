@@ -2,7 +2,7 @@
 
 This repository accompanies the talks
 
-**“Zero Trust for APIs and Microservices: Service‑Mesh Security in a Cloud‑Native World.”**
+**“Zero Trust for APIs and Microservices: Service‑Mesh Security in a Cloud‑Native World.”**       
 **“Shift-Left Meets Zero Trust: Building Secure-by-Design APIs from Day Zero.”**
 
 
