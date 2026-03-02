@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install yamllint
+        run: pip install yamllint
+      - name: Lint YAML files
+        run: yamllint -d relaxed k8s/ envoy.yaml
+
+  k8s-validate:
+    name: Kubernetes Manifest Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz \
+            | tar xz -C /usr/local/bin
+      - name: Validate manifests
+        run: |
+          find k8s/ -name '*.yaml' -print0 \
+            | xargs -0 kubeconform -strict -ignore-missing-schemas -summary
+
+  opa-test:
+    name: OPA Policy Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OPA
+        run: |
+          curl -sL -o /usr/local/bin/opa \
+            https://openpolicyagent.org/downloads/latest/opa_linux_amd64_static
+          chmod +x /usr/local/bin/opa
+      - name: Run policy tests
+        run: opa test policies/opa/ -v
+
+  shellcheck:
+    name: Shell Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        run: shellcheck demo.sh
+
+  echo-service-test:
+    name: Echo Service Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/echo-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+      - name: Run tests
+        run: python -m pytest test_app.py -v
+
+  docker-build:
+    name: Docker Build (echo-service)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t echo-service:test src/echo-service/
